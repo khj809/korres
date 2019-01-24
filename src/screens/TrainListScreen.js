@@ -13,17 +13,24 @@ import {dayOfWeek} from '../utils/date';
 export default class TrainListScreen extends React.Component {
     static navigationOptions = {
         title: '열차조회 목록'
-    }
+	}
+	
+	constructor(props, context){
+		super(props, context);
 
-	state = {
-		trains: [],
-		searchDate: this.props.navigation.getParam('depDate'),
-		searchDepName: this.props.navigation.getParam('depName'),
-		searchArrName: this.props.navigation.getParam('arrName'),
-		passengers: this.props.navigation.getParam('passengers'),
-		trainType: TrainTypes.ALL,
-		reachedEnd: false,
-		isFetching: false,
+		let searchDate = this.props.navigation.getParam('depDate');
+		if (searchDate.isBefore(dayjs())) searchDate = dayjs();
+
+		this.state = {
+			trains: [],
+			searchDate,
+			searchDepName: this.props.navigation.getParam('depName'),
+			searchArrName: this.props.navigation.getParam('arrName'),
+			passengers: this.props.navigation.getParam('passengers'),
+			trainType: TrainTypes.ALL,
+			reachedEnd: false,
+			isFetching: false,
+		};
 	}
 
 	componentDidMount = async () => {
@@ -56,7 +63,7 @@ export default class TrainListScreen extends React.Component {
 				includeNoSeats: true
 			}
 		);
-		trains = trains.map(train => {return {...train, key: train.trainNo}});
+		trains = trains.map(train => {return Object.assign(train, {key: train.trainNo})});
 
 		this.setState({
 			trains: this.state.trains.concat(trains),
@@ -93,8 +100,8 @@ export default class TrainListScreen extends React.Component {
 			return;
 		}
 
-		const hasSeat = (rsvOption === ReserveOptions.GENERAL_FIRST && train.hasGeneralSeat()) || 
-			(rsvOption === ReserveOptions.SPECIAL_FIRST && train.hasSpecialSeat());
+		const hasSeat = (rsvOption === ReserveOptions.GENERAL_FIRST && train.hasGeneralSeat) || 
+			(rsvOption === ReserveOptions.SPECIAL_FIRST && train.hasSpecialSeat);
 
 		if (hasSeat){
 			Alert.alert(
@@ -127,7 +134,8 @@ export default class TrainListScreen extends React.Component {
 				[
 					{text: '예', onPress: async () => {
 						try {
-							const macroJob = new MacroJob({
+							const macroJob = new MacroJob();
+							macroJob.init({
 								train: train, 
 								passengers: this.state.passengers,
 								reserveOption: rsvOption,
@@ -204,13 +212,13 @@ export default class TrainListScreen extends React.Component {
 								<Text>{item.arrName}</Text>
 							</TrainTimeView>
 							<TrainGeneralSeatView onPress={() => this.onClickTrain(item, ReserveOptions.GENERAL_FIRST)}>
-								<TrainGeneralSeatText soldOut={!item.hasGeneralSeat()}>
-									{item.hasGeneralSeat() ? "일반실" : "매진"}
+								<TrainGeneralSeatText soldOut={!item.hasGeneralSeat}>
+									{item.hasGeneralSeat ? "일반실" : "매진"}
 								</TrainGeneralSeatText>
 							</TrainGeneralSeatView>
 							<TrainSpecialSeatView onPress={() => this.onClickTrain(item, ReserveOptions.SPECIAL_FIRST)}>
-								<TrainSpecialSeatText soldOut={!item.hasSpecialSeat()}>
-									{item.hasSpecialSeat() ? "특실" : "매진"}
+								<TrainSpecialSeatText soldOut={!item.hasSpecialSeat}>
+									{item.hasSpecialSeat ? "특실" : "매진"}
 								</TrainSpecialSeatText>
 							</TrainSpecialSeatView>
 						</TrainWrapper>

@@ -11,8 +11,9 @@ import {sendLocalNotification} from '../utils/notification';
 
 const MACRO_JOBS_KEY = '@korres:macroJobs';
 
+
 class MacroJob {
-    constructor(data){
+    init(data){
         this.uuid = uuidv4();
         this.train = data.train;
         this.passengers = data.passengers;
@@ -27,7 +28,7 @@ class MacroJob {
 
         const intervalId = BackgroundTimer.setInterval(async ()=>{
             const train = this.train;
-            if (dayjs(train.getDeparture()).isBefore(dayjs())){
+            if (dayjs(train.departure).isBefore(dayjs())){
                 this._log('열차가 이미 출발하였습니다. 매크로를 삭제합니다..');
                 await this.stop();
                 return;
@@ -103,25 +104,22 @@ class MacroJob {
     }
 }
 
-MacroJob.fromJson = (jsonData) => {
-    const job = new MacroJob({});
-    job.uuid = jsonData.uuid;
-    job.train = Train.fromJson(jsonData.train);
-    job.passengers = jsonData.passengers;
-    job.reserveOption = jsonData.reserveOption;
-    job.intervalId = jsonData.intervalId;
+MacroJob.deserialize = (jsonData) => {
+    let job = new MacroJob();
+    const train = Object.assign(new Train(), jsonData.train);
+    job = Object.assign(job, jsonData, {train});
     return job;
 }
 
 MacroJob.loadMacroJobs = async () => {
-    let macroJobs = await AsyncStorage.getItem(MACRO_JOBS_KEY) || '[]';
-    macroJobs = JSON.parse(macroJobs);
-    macroJobs = macroJobs.map(jsonData => MacroJob.fromJson(jsonData));
+    let macroJobs = JSON.parse(await AsyncStorage.getItem(MACRO_JOBS_KEY) || '[]');
+    macroJobs = macroJobs.map(jsonData => MacroJob.deserialize(jsonData));
     return macroJobs;
 }
 
 MacroJob.storeMacroJobs = async (macroJobs) => {
-    await AsyncStorage.setItem(MACRO_JOBS_KEY, JSON.stringify(macroJobs));
+    macroJobs = JSON.stringify(macroJobs);
+    await AsyncStorage.setItem(MACRO_JOBS_KEY, macroJobs);
 }
 
 MacroJob.initMacroJobs = async () => {

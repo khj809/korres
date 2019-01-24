@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "dayjs": "^1.8.0",
-    "korailjs": "^0.1.16",
+    "korailjs": "^0.1.22",
     "mobx": "^5.9.0",
     "mobx-react": "^5.4.3",
     "moment": "^2.24.0",

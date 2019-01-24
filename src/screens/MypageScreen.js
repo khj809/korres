@@ -39,10 +39,9 @@ export default class MypageScreen extends React.Component {
     fetchMyReservations = async () => {
         try {
             if (this.state.isLogined){
-                const myReservations = await korail.myReservations();
-                this.setState({
-                    myReservations: myReservations.map(rsv => {return {...rsv, key: rsv.rsvId}}),
-                })
+                let myReservations = await korail.myReservations();
+                myReservations = myReservations.map(rsv => {return Object.assign(rsv, {key: rsv.rsvId})});
+                this.setState({myReservations});
             }
         } catch(e){
             console.log(e);
@@ -56,7 +55,9 @@ export default class MypageScreen extends React.Component {
             if (loginResult){
                 await AsyncStorage.setItem('@korres:korailId', korailIdInput);
                 await AsyncStorage.setItem('@korres:korailPw', korailPwInput);
-                this.setState({isLogined: true, username: korail.name});
+                this.setState({isLogined: true, username: korail.name}, async() => {
+                    await this.componentDidFocus();
+                });
             } else {
                 this.refs.toast.show('로그인 실패');
             }
@@ -118,14 +119,13 @@ export default class MypageScreen extends React.Component {
                         <FlatList 
                             data={this.state.myReservations}
                             renderItem={({item}) => {
-                                const departure = dayjs(item.getDeparture());
-                                const arrival = dayjs(item.getArrival());
-                                const buyLimit = dayjs(`${item.buyLimitDate.substr(0, 4)}-${item.buyLimitDate.substr(4, 2)}-${item.buyLimitDate.substr(6, 2)} ` + 
-                                    `${item.buyLimitTime.substr(0, 2)}:${item.buyLimitTime.substr(2, 2)}`);
+                                const departure = dayjs(item.departure);
+                                const arrival = dayjs(item.arrival);
+                                const buyLimit = dayjs(item.buyLimit);
                                 return (
                                     <View>
                                         <Text>{departure.format(`YYYY년 MM월 DD일 (${dayOfWeek[departure.format('ddd')]})`)}</Text>
-                                        <Text>{`[${item.trainTypeName}] ${item.depName} ${departure.format('HH:mm')} -> ${arrival.format('HH:mm')}`}</Text>
+                                        <Text>{`[${item.trainTypeName}] ${item.depName} ${departure.format('HH:mm')} -> ${item.arrName} ${arrival.format('HH:mm')}`}</Text>
                                         <Text>{`${item.seatNoCount}매 (${parseInt(item.price)}원)`}</Text>
                                         {
                                             item.isWaiting

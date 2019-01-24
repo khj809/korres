@@ -54,8 +54,8 @@ class MacroListScreen extends React.Component {
                         <FlatList data={this.state.macroJobs}
                             renderItem={({item}) => {
                                 const train = item.train;
-                                const depDate = dayjs(train.getDeparture());
-                                const arrDate = dayjs(train.getArrival());
+                                const depDate = dayjs(train.departure);
+                                const arrDate = dayjs(train.arrival);
 
                                 const dateText = depDate.format(`YYYY년 MM월 DD일 (${dayOfWeek[depDate.format('ddd')]})`);
                                 const trainText = 
