@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, Text, ScrollView, FlatList, Alert, Picker} from 'react-native';
+import {FlatList, Alert, Picker} from 'react-native';
 import {NavigationActions} from 'react-navigation';
 import Toast from 'react-native-easy-toast';
 import styled from 'styled-components/native';
@@ -8,6 +8,8 @@ import {TrainTypes, ReserveOptions, AdultPassenger} from 'korailjs';
 
 import korail from '../api/korail';
 import MacroJob from '../macro';
+import Text from '../components/MyText';
+import colors from '../constants/colors';
 import {dayOfWeek} from '../utils/date';
 
 export default class TrainListScreen extends React.Component {
@@ -85,10 +87,25 @@ export default class TrainListScreen extends React.Component {
 	}
 
 	onClickTrain = (train, rsvOption) => {
+		const hasSeat = (rsvOption === ReserveOptions.GENERAL_FIRST && train.hasGeneralSeat) || 
+			(rsvOption === ReserveOptions.SPECIAL_FIRST && train.hasSpecialSeat);
+		const isRsvWaiting = train.reservePossibleName === '예약대기';
+
+		if (isRsvWaiting){
+			Alert.alert(
+				'예약대기',
+				'예약대기 상태인 열차는 매크로를 실행할 수 없습니다. 코레일톡 앱에서 직접 예약대기를 하시거나, 열차가 매진 상태로 바뀔 때까지 기다려 주시기 바랍니다.',
+				[
+					{text: '확인', style: 'default'}
+				]
+			);
+			return;
+		}
+
 		if (!korail.logined){
 			Alert.alert(
 				'로그인 필요',
-				'열차 예매를 위해 코레일 계정으로 로그인이 필요합니다.',
+				'열차 예약을 위해 코레일 계정으로 로그인이 필요합니다.',
 				[
 					{text: '확인', onPress: ()=>{
 						this.props.navigation.dispatch(NavigationActions.navigate({
@@ -96,12 +113,9 @@ export default class TrainListScreen extends React.Component {
 						}));
 					}}
 				]
-			)
+			);
 			return;
 		}
-
-		const hasSeat = (rsvOption === ReserveOptions.GENERAL_FIRST && train.hasGeneralSeat) || 
-			(rsvOption === ReserveOptions.SPECIAL_FIRST && train.hasSpecialSeat);
 
 		if (hasSeat){
 			Alert.alert(
@@ -126,7 +140,7 @@ export default class TrainListScreen extends React.Component {
 					}},
 					{text: '아니오', style: 'cancel'}
 				]
-			)
+			);
 		} else {
 			Alert.alert(
 				'예약하기',
@@ -186,7 +200,7 @@ export default class TrainListScreen extends React.Component {
 					</StationView>
 					<TrainTypePickerView>
 						<TrainTypePicker selectedValue={this.state.trainType} onValueChange={this.handleChangeTrainType}>
-							<Picker.Item label="전체" value={TrainTypes.ALL} />
+							<Picker.Item label="전체" value={TrainTypes.ALL} style={{fontSize: 8}} />
 							<Picker.Item label="KTX" value={TrainTypes.KTX} />
 							<Picker.Item label="새마을" value={TrainTypes.SAEMAEUL} />
 							<Picker.Item label="무궁화" value={TrainTypes.MUGUNGHWA} />
@@ -198,35 +212,46 @@ export default class TrainListScreen extends React.Component {
 				<FlatList 
 					data={this.state.trains} 
 					onEndReached={async ()=>{await this.fetchTrains()}}
-					renderItem={({item})=> 
-						<TrainWrapper>
-							<TrainTypeView>
-								<Text>{item.trainTypeName}</Text>
-							</TrainTypeView>
-							<TrainTimeView>
-								<Text>{item.depTime.substr(0, 2)}:{item.depTime.substr(2, 2)}</Text>
-								<Text>{item.depName}</Text>
-							</TrainTimeView>
-							<TrainTimeView>
-								<Text>{item.arrTime.substr(0, 2)}:{item.arrTime.substr(2, 2)}</Text>
-								<Text>{item.arrName}</Text>
-							</TrainTimeView>
-							<TrainGeneralSeatView onPress={() => this.onClickTrain(item, ReserveOptions.GENERAL_FIRST)}>
-								<TrainGeneralSeatText soldOut={!item.hasGeneralSeat}>
-									{item.hasGeneralSeat ? "일반실" : "매진"}
-								</TrainGeneralSeatText>
-							</TrainGeneralSeatView>
-							<TrainSpecialSeatView onPress={() => this.onClickTrain(item, ReserveOptions.SPECIAL_FIRST)}>
-								<TrainSpecialSeatText soldOut={!item.hasSpecialSeat}>
-									{item.hasSpecialSeat ? "특실" : "매진"}
-								</TrainSpecialSeatText>
-							</TrainSpecialSeatView>
-						</TrainWrapper>
-					}
+					renderItem={({item})=> {
+
+						const isSpecialSeatAvailable = item.trainTypeName.startsWith('KTX');
+						const isRsvWaiting = item.reservePossibleName === '예약대기';
+						
+						return (
+							<TrainWrapper>
+								<TrainTypeView>
+									<Text>{item.trainTypeName}</Text>
+								</TrainTypeView>
+								<TrainTimeView>
+									<Text>{item.depTime.substr(0, 2)}:{item.depTime.substr(2, 2)}</Text>
+									<Text>{item.depName}</Text>
+								</TrainTimeView>
+								<TrainTimeView>
+									<Text>{item.arrTime.substr(0, 2)}:{item.arrTime.substr(2, 2)}</Text>
+									<Text>{item.arrName}</Text>
+								</TrainTimeView>
+								<TrainGeneralSeatView onPress={() => this.onClickTrain(item, ReserveOptions.GENERAL_FIRST)}>
+									<TrainGeneralSeatText soldOut={!item.hasGeneralSeat}>
+										{item.hasGeneralSeat ? "일반실" : isRsvWaiting? "예약대기" : "매진"}
+									</TrainGeneralSeatText>
+								</TrainGeneralSeatView>
+								{
+									isSpecialSeatAvailable &&
+									<TrainSpecialSeatView onPress={() => this.onClickTrain(item, ReserveOptions.SPECIAL_FIRST)}>
+										<TrainSpecialSeatText soldOut={!item.hasSpecialSeat}>
+											{item.hasSpecialSeat ? "특실" : isRsvWaiting? "예약대기" : "매진"}
+										</TrainSpecialSeatText>
+									</TrainSpecialSeatView>
+								}
+							</TrainWrapper>
+						)
+					}}
 					ListFooterComponent={
 						this.state.reachedEnd &&
-						<TomorrowSearchView onPress={() => this.searchOtherDay(true)}>
-							<Text>{`다음날 ${date.add(1, 'day').format('(MM월 DD일)')} 조회하기`}</Text>
+						<TomorrowSearchView>
+							<TomorrowSearchButton onPress={() => this.searchOtherDay(true)}>
+								<Text color='white'>{`다음날 ${date.add(1, 'day').format('(MM월 DD일)')} 조회하기`}</Text>
+							</TomorrowSearchButton>
 						</TomorrowSearchView>
 					}
 				/>
@@ -246,7 +271,8 @@ const DateView = styled.View`
 	justify-content: center;
 	align-items: center;
 	height: 50;
-	border-width: 1;
+	border-bottom-width: 1;
+	border-bottom-color: #000;
 	flex-direction: row;
 `;
 
@@ -268,7 +294,8 @@ const SecondContainer = styled.View`
 	flex-direction: row;
 	align-items: center;
 	height: 50;
-	border-width: 1;
+	border-bottom-width: 1;
+	border-bottom-color: #000;
 `
 
 const StationView = styled.View`
@@ -279,15 +306,17 @@ const StationView = styled.View`
 const TrainTypePickerView = styled.View`
 	width: 50%;
 	align-items: center;
+	border-left-color: ${colors.main};
+	border-left-width: 1;
 `
 
 const TrainTypePicker = styled.Picker`
-	width: 150;
-	height: 50;
+	width: 100%;
 `
 
 const TrainWrapper = styled.View`
-	border-width: 1;
+	border-bottom-width: 1;
+	border-bottom-color: ${colors.gray};
 	flex-wrap: wrap;
 	flex-direction: row;
 	height: 60;
@@ -325,8 +354,18 @@ const TrainSpecialSeatText = styled.Text`
 	color: ${props => props.soldOut ? '#f00' : '#000'};
 `
 
-const TomorrowSearchView = styled.TouchableOpacity`
+const TomorrowSearchView = styled.View`
+	width: 100%;
+	height: 60;
 	justify-content: center;
 	align-items: center;
-	height: 60;
+`
+
+const TomorrowSearchButton = styled.TouchableOpacity`
+	height: 60%;
+	width: 70%;
+	border-radius: 20;
+	background-color: ${colors.main};
+	align-items: center;
+	justify-content: center;
 `

@@ -3,49 +3,48 @@ import {View, StyleSheet, AppState} from 'react-native';
 import {Provider} from 'mobx-react';
 
 import AppNavigator from './src/navigation';
-import {initLogin} from './src/api/korail';
+import {login} from './src/api/korail';
 import MacroJob from './src/macro';
-import {MacroJobStore} from './src/stores';
+import {MacroJobStore, UserStore} from './src/stores';
 
+class App extends React.Component {
+  state = {
+    appState: '',
+  };
 
-class App extends React.Component{
-    state = {
-        appState: ''
+  componentDidMount = async () => {
+    AppState.addEventListener('change', this._handleAppStateChange);
+  };
+
+  componentWillUnmount = () => {
+    AppState.removeEventListener('change', this._handleAppStateChange);
+  };
+
+  _handleAppStateChange = async nextAppState => {
+    if (this.state.appState === '' && nextAppState === 'active') {
+      console.log('App is launching!');
+      await login();
+      await MacroJob.initMacroJobs();
     }
+    this.setState({appState: nextAppState});
+  };
 
-    componentDidMount = async () => {
-        AppState.addEventListener('change', this._handleAppStateChange);
-    }
-
-    componentWillUnmount = () => {
-        AppState.removeEventListener('change', this._handleAppStateChange);
-    }
-
-    _handleAppStateChange = async (nextAppState) => {
-        if (this.state.appState === '' && nextAppState === 'active'){
-            console.log('App is launching!');
-            await initLogin();
-            await MacroJob.initMacroJobs();
-        }
-        this.setState({appState: nextAppState});
-    }
-
-    render(){
-        return (
-            <Provider macro={MacroJobStore}>
-                <View style={styles.container}>
-                    <AppNavigator/>
-                </View>
-            </Provider>
-        )
-    }
+  render() {
+    return (
+      <Provider macroStore={MacroJobStore} userStore={UserStore}>
+        <View style={styles.container}>
+          <AppNavigator />
+        </View>
+      </Provider>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-    }
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
 });
 
 export default App;

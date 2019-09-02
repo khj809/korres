@@ -1,12 +1,50 @@
 import React from 'react';
-import {View, Text, FlatList, Button, Alert, TouchableOpacity} from 'react-native';
+import {FlatList, Alert} from 'react-native';
 import styled from 'styled-components/native';
 import Toast from 'react-native-easy-toast';
-import {ReserveOptions} from 'korailjs';
 import dayjs from 'dayjs';
 
 import MacroJob from '../macro';
+import Text from '../components/MyText';
+import colors from '../constants/colors';
 import {dayOfWeek} from '../utils/date';
+
+
+const MacroListItem = ({macro, onTouchMacro, onCancelMacro}) => {
+    const train = macro.train;
+    const depDate = dayjs(train.departure);
+    const arrDate = dayjs(train.arrival);
+    const dateText = depDate.format(`YYYY년 MM월 DD일 (${dayOfWeek[depDate.format('ddd')]})`);
+
+    return (
+        <MacroJobWrapper>
+            <MacroInfoView>
+                <Text>{dateText}</Text>
+                <MacroStationWrapper>
+                    <MacroTrainTypeView>
+                        <Text>{train.trainTypeName}</Text>
+                    </MacroTrainTypeView>
+                    <MacroStationView>
+                        <Text color={colors.main} fontSize={20}>{train.depName}</Text>
+                        <Text>{depDate.format('HH:mm')}</Text>
+                    </MacroStationView>
+                    <MacroStationView>
+                        <Text color={colors.main} fontSize={20}>{train.arrName}</Text>
+                        <Text>{arrDate.format('HH:mm')}</Text>
+                    </MacroStationView>
+                </MacroStationWrapper>
+            </MacroInfoView>
+            <MacroButtonView>
+                <MacroButton onPress={() => onTouchMacro(macro)}>
+                    <Text color='white' fontSize={15}>상세보기</Text>
+                </MacroButton>
+                <MacroButton onPress={() => onCancelMacro(macro)}>
+                    <Text color='white' fontSize={15}>취소하기</Text>
+                </MacroButton>
+            </MacroButtonView>
+        </MacroJobWrapper>
+    )
+}
 
 
 class MacroListScreen extends React.Component {
@@ -43,89 +81,112 @@ class MacroListScreen extends React.Component {
         });
     }
 
+    handleCancelMacro = (macroJob) => {
+        Alert.alert(
+            '매크로 취소',
+            '정말 매크로를 취소하시겠습니까?',
+            [
+                {text: '예', onPress: async () => {
+                    await macroJob.stop();
+                    await this.fetchMacroJobs();
+                }},
+                {text: '아니오', style: 'cancel'}
+            ]
+        )
+    }
+
     render(){
         return (
-            <View>
-                {
-                    this.state.macroJobs.length > 0
-                    ?
-                    <View>
-                        <Text>{`${this.state.macroJobs.length}건의 매크로가 실행중입니다.`}</Text>
-                        <FlatList data={this.state.macroJobs}
-                            renderItem={({item}) => {
-                                const train = item.train;
-                                const depDate = dayjs(train.departure);
-                                const arrDate = dayjs(train.arrival);
+            <RootView>
+                <MacroNumView>
+                    <Text fontSize={20}>
+                    {
+                        this.state.macroJobs.length > 0 ?
+                        <>
+                            <Text fontSize={20} color={colors.main}>{this.state.macroJobs.length}</Text>
+                            건의 매크로가 실행중입니다.
+                        </> : 
+                        '실행중인 매크로가 없습니다.'
+                    }
+                    </Text>
+                </MacroNumView>
 
-                                const dateText = depDate.format(`YYYY년 MM월 DD일 (${dayOfWeek[depDate.format('ddd')]})`);
-                                const trainText = 
-                                    `[${train.trainTypeName}] ${train.depName} (${depDate.format('HH:mm')})` + 
-                                    ` -> ${train.arrName} (${arrDate.format('HH:mm')})`;
-
-                                return (
-                                    <MacroJobWrapper onPress={() => {this.handleTouchMacro(item);}}>
-                                        <MacroJobRow>
-                                            <MacroJobDateView>
-                                                <MacroJobDateText>{dateText}</MacroJobDateText>
-                                            </MacroJobDateView>
-                                            <MacroJobCountView>
-                                                <MacroJobCountText>{`${item.passengers}매`}</MacroJobCountText>
-                                            </MacroJobCountView>
-                                        </MacroJobRow>
-                                        <MacroJobRow>
-                                            <MacroJobTrainText>{trainText}</MacroJobTrainText>
-                                        </MacroJobRow>
-                                        {/* <Button title="매크로 취소" onPress={() => {this.handleCancelMacro(item);}}></Button> */}
-                                    </MacroJobWrapper>
-                                )
-                            }}
-                        />
-                    </View>
-                    :
-                    <View>
-                        <Text>실행중인 매크로가 없습니다.</Text>
-                    </View>
-                }
+                <FlatList data={this.state.macroJobs}
+                    renderItem={({item}) => 
+                        <MacroListItem macro={item} onTouchMacro={this.handleTouchMacro} onCancelMacro={this.handleCancelMacro}/>
+                    }
+                />
                 <Toast ref="toast" positionValue={200} opacity={0.9}/>
-            </View>
+            </RootView>
         )
     }
 }
 
-const MacroJobWrapper = styled.TouchableOpacity`
-    border-width: 1;
-    flex-direction: column;
-    height: 100;
-`;
-
-const MacroJobRow = styled.View`
+const RootView = styled.View`
+    flex: 1;
     width: 100%;
-    height: 30;
-    flex-direction: row;
+    height: 100%;
+`
+
+const MacroNumView = styled.View`
+    width: 100%;
+    height: 15%;
     align-items: center;
-	justify-content: center;
+    justify-content: center;
+    border-bottom-width: 1;
+    border-bottom-color: black;
+`
+
+const MacroJobWrapper = styled.View`
+    flex-direction: row;
+    height: 100;
+    padding-vertical: 10;
+    padding-horizontal: 10;
+    border-bottom-width: 1;
+    border-bottom-color: black;
 `;
 
-const MacroJobDateView = styled.View`
-    width: 50%;
-    height: 30;
+const MacroInfoView = styled.View`
+    width: 70%;
+    height: 100%;
+    justify-content: space-around;
+    align-items: center;
 `
 
-const MacroJobDateText = styled.Text`
-    text-align: left;
+const MacroStationWrapper = styled.View`
+    width: 100%;
+    height: 70%;
+    flex-direction: row;
 `
 
-const MacroJobCountView = styled.View`
-    width: 50%;
-    height: 30;
+const MacroTrainTypeView = styled.View`
+    width: 30%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
 `
 
-const MacroJobCountText = styled.Text`
-    text-align: right;
+const MacroStationView = styled.View`
+    width: 35%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
 `
 
-const MacroJobTrainText = styled.Text`
-    text-align: center;
+const MacroButtonView = styled.View`
+    width: 30%;
+    height: 100%;
+    align-items: center;
+    justify-content: space-around;
+`
+
+const MacroButton = styled.TouchableOpacity`
+    width: 90%;
+    height: 40%;
+    border-radius: 10;
+    align-items: center;
+    justify-content: center;
+    background-color: #334F70;
 `
 
 export default MacroListScreen;

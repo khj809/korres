@@ -1,156 +1,189 @@
 import React from 'react';
-import {View, Text, AsyncStorage, TextInput, Button, FlatList, Alert} from 'react-native';
-import dayjs from 'dayjs';
+import {observer, inject} from 'mobx-react';
 import Toast from 'react-native-easy-toast';
 import styled from 'styled-components/native';
-import korail from '../api/korail';
-import {dayOfWeek} from '../utils/date';
 
-export default class MypageScreen extends React.Component {
-    static navigationOptions = {
-        title: '마이페이지',
+import {login, logout} from '../api/korail';
+import Text from '../components/MyText';
+import MypageNavigator from '../navigation/MypageNavigator';
+import colors from '../constants/colors';
+
+class MypageScreen extends React.Component {
+  static navigationOptions = {
+    title: '마이페이지',
+  };
+  static router = MypageNavigator.router;
+
+  state = {
+    korailIdInput: '',
+    korailPwInput: '',
+  };
+
+  handleLogin = async () => {
+    try {
+      const {korailIdInput, korailPwInput} = this.state;
+      const loginResult = await login(korailIdInput, korailPwInput);
+      if (!loginResult) {
+        this.refs.toast.show('로그인 실패');
+      }
+    } catch (e) {
+      console.log(e);
     }
+  };
 
-    state = {
-        isLogined: false,
-        username: null,
-        korailIdInput: '',
-        korailPwInput: '',
-        myReservations: [],
-    }
+  handleLogout = async () => {
+    await logout();
+    this.setState({myReservations: []});
+  };
 
-    componentDidMount = () => {
-        this.subs = [
-            this.props.navigation.addListener('didFocus', this.componentDidFocus)
-        ];
-        this.setState({isLogined: korail.logined, username: korail.name}, async () => {
-            await this.fetchMyReservations();
-        });
-    }
+  render() {
+    return (
+      <RootView>
+        {!this.props.userStore.isLoggedIn ? (
+          <LoginContainer>
+            <Text>코레일 계정으로 로그인이 필요합니다.</Text>
+            <LoginInputWrapper>
+              <LoginInputLabelView>
+                <Text>회원번호</Text>
+              </LoginInputLabelView>
+              <LoginInputView>
+                <KorailIdInput
+                  placeholder="회원번호를 입력해 주세요."
+                  onChangeText={text => this.setState({korailIdInput: text})}
+                />
+              </LoginInputView>
+            </LoginInputWrapper>
+            <LoginInputWrapper>
+              <LoginInputLabelView>
+                <Text>비밀번호</Text>
+              </LoginInputLabelView>
+              <LoginInputView>
+                <KorailPwInput
+                  placeholder="비밀번호를 입력해 주세요."
+                  secureTextEntry={true}
+                  onChangeText={text => this.setState({korailPwInput: text})}
+                />
+              </LoginInputView>
+            </LoginInputWrapper>
 
-    componentWillUnmount = () => {
-        this.subs.forEach(sub => sub.remove());
-    }
+            <LoginButton onPress={this.handleLogin}>
+              <Text color="white" fontSize={20}>
+                로그인
+              </Text>
+            </LoginButton>
+          </LoginContainer>
+        ) : (
+          <>
+            <UserInfoContainer>
+              <UserInfoView>
+                <Text fontSize={15}>
+                  <Text
+                    color={colors.main}
+                    fontSize={
+                      20
+                    }>{`${this.props.userStore.userInfo.username}`}</Text>
+                  {` 님 (${this.props.userStore.userInfo.membershipNumber})`}
+                </Text>
+              </UserInfoView>
+              <LogoutButtonView>
+                <LogoutButton onPress={this.handleLogout}>
+                  <Text color="white">로그아웃</Text>
+                </LogoutButton>
+              </LogoutButtonView>
+            </UserInfoContainer>
 
-    componentDidFocus = async () => {
-        await this.fetchMyReservations();
-    }
-
-    fetchMyReservations = async () => {
-        try {
-            if (this.state.isLogined){
-                let myReservations = await korail.myReservations();
-                myReservations = myReservations.map(rsv => {return Object.assign(rsv, {key: rsv.rsvId})});
-                this.setState({myReservations});
-            }
-        } catch(e){
-            console.log(e);
-        }
-    }
-
-    handleLogin = async () => {
-        try {
-            const {korailIdInput, korailPwInput} = this.state;
-            const loginResult = await korail.login(korailIdInput, korailPwInput);
-            if (loginResult){
-                await AsyncStorage.setItem('@korres:korailId', korailIdInput);
-                await AsyncStorage.setItem('@korres:korailPw', korailPwInput);
-                this.setState({isLogined: true, username: korail.name}, async() => {
-                    await this.componentDidFocus();
-                });
-            } else {
-                this.refs.toast.show('로그인 실패');
-            }
-        } catch(e){
-            console.log(e);
-        }
-    }
-
-    handleLogout = async () => {
-        try {
-            await AsyncStorage.removeItem('@korres:korailId');
-            await AsyncStorage.removeItem('@korres:korailPw');
-            this.setState({isLogined: false, username: null});
-        } catch(e){
-            console.log(e);
-        }
-    }
-
-    handleCancelReservation = (rsv) => {
-        Alert.alert(
-            '예약 취소',
-            '이 열차의 예약을 취소하시겠습니까?',
-            [
-                {text: '예', onPress: async () => {
-                    await korail.cancelReservation(rsv);
-                    this.refs.toast.show('예약이 취소되었습니다.');
-                    await this.fetchMyReservations();
-                }},
-                {text: '아니오', style: 'cancel'}
-            ]
-        );
-    }
-
-    render(){
-        return (
-            <View>
-                {
-                    !this.state.isLogined 
-                    ?
-                    <View>
-                        <Text>코레일 계정 로그인이 필요합니다.</Text>
-                        <KorailIdInput 
-                            placeholder="코레일 ID"
-                            onChangeText={text => this.setState({korailIdInput: text})}
-                        />
-                        <KorailPwInput 
-                            placeholder="코레일 PW"
-                            secureTextEntry={true}
-                            onChangeText={text => this.setState({korailPwInput: text})}
-                        />
-                        <Button onPress={this.handleLogin} title="로그인"></Button>
-                    </View>  
-                    :
-                    <View>
-                        <Text>{`${this.state.username}님 환영합니다.`}</Text>
-                        <Button onPress={this.handleLogout} title="로그아웃"></Button>
-
-                        <Text>예약 목록</Text>
-                        <FlatList 
-                            data={this.state.myReservations}
-                            renderItem={({item}) => {
-                                const departure = dayjs(item.departure);
-                                const arrival = dayjs(item.arrival);
-                                const buyLimit = dayjs(item.buyLimit);
-                                return (
-                                    <View>
-                                        <Text>{departure.format(`YYYY년 MM월 DD일 (${dayOfWeek[departure.format('ddd')]})`)}</Text>
-                                        <Text>{`[${item.trainTypeName}] ${item.depName} ${departure.format('HH:mm')} -> ${item.arrName} ${arrival.format('HH:mm')}`}</Text>
-                                        <Text>{`${item.seatNoCount}매 (${parseInt(item.price)}원)`}</Text>
-                                        {
-                                            item.isWaiting
-                                            ?
-                                            <Text>예약대기</Text>
-                                            :
-                                            <Text>{`결제기한: ${buyLimit.format('YYYY년 MM월 DD일 HH:mm')}`}</Text>
-                                        }
-                                        <Button title="예약 취소" onPress={() => this.handleCancelReservation(item)}></Button>
-                                    </View>
-                                );
-                            }}
-                        />
-                    </View>
-                }
-                <Toast ref="toast" positionValue={200} opacity={0.9}/>
-            </View>
-        )
-    }
+            <MypageNavigator navigation={this.props.navigation} />
+          </>
+        )}
+        <Toast ref="toast" positionValue={200} opacity={0.9} />
+      </RootView>
+    );
+  }
 }
 
+export default inject('userStore')(observer(MypageScreen));
+
+const RootView = styled.View`
+  flex: 1;
+  width: 100%;
+  height: 100%;
+`;
+
+const LoginContainer = styled.View`
+  width: 100%;
+  height: 300;
+  align-items: center;
+  padding-vertical: 30;
+  padding-horizontal: 20;
+`;
+
+const LoginInputWrapper = styled.View`
+  flex-direction: row;
+  width: 100%;
+  height: 20%;
+`;
+
+const LoginInputLabelView = styled.View`
+  width: 30%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+`;
+
+const LoginInputView = styled.View`
+  width: 70%;
+  height: 100%;
+  justify-content: center;
+`;
+
 const KorailIdInput = styled.TextInput`
-    height: 40;
+  width: 100%;
+  height: 30;
+  border-width: 1;
+  padding-vertical: 0;
 `;
 
 const KorailPwInput = styled.TextInput`
-    height: 40;
-`
+  width: 100%;
+  height: 30;
+  border-width: 1;
+  padding-vertical: 0;
+`;
+
+const LoginButton = styled.TouchableOpacity`
+  width: 80%;
+  height: 50;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15;
+  background-color: #334f70;
+`;
+
+const UserInfoContainer = styled.View`
+  flex-direction: row;
+  width: 100%;
+  height: 10%;
+  margin-vertical: 25;
+`;
+
+const UserInfoView = styled.View`
+  flex-direction: row;
+  width: 70%;
+  align-items: center;
+  justify-content: center;
+`;
+
+const LogoutButtonView = styled.View`
+  flex-direction: row;
+  width: 30%;
+  align-items: center;
+`;
+
+const LogoutButton = styled.TouchableOpacity`
+  width: 90%;
+  height: 70%;
+  border-radius: 10;
+  background-color: #334f70;
+  align-items: center;
+  justify-content: center;
+`;
