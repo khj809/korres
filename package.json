@@ -12,7 +12,7 @@
     "korailjs": "^0.1.23",
     "mobx": "^5.13.0",
     "mobx-react": "^6.1.3",
-    "moment": "^2.24.0",
+    "moment": "^2.29.2",
     "react": "16.8.6",
     "react-native": "0.60.5",
     "react-native-background-timer": "^2.1.1",
